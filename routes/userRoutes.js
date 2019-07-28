@@ -330,17 +330,25 @@ router.post("/block", requireLogin, async (req, res) => {
     // circularObj.list = [circularObj, circularObj];
     console.log("1");
     let user = await User.findById(req.body.user_id);
+    let loggedInUser = await User.findById(req.userData.userId);
+   // let blockedUser = await User.findById(req.body.user_id);
     console.log(user.Blocked);
     console.log(user);
+
+    for(let key in loggedInUser.Blocked) {
+      if(loggedInUser.Blocked[key] === req.body.user_id )
+          return res.status(200).json({message : "User already blocked"});
+    }
     //user = JSON.parse(JSON.stringify(user));
 
     //user = stringify(user);
     console.log(user.Blocked);
     //user = JSON.parse(JSON.stringify(user));
-    user.Blocked.push(req.body.to_be_blocked);
+     // user.Blocked.push(req.body.to_be_blocked);
+     loggedInUser.Blocked.push(req.body.user_id);
     //Object.assign(user, userBlocked);
-
-    await user.save();
+    await loggedInUser.save();
+   // await user.save();
     res.status(200).json({ message: "User blocked" });
   } catch (err) {
     console.log(err);
@@ -349,25 +357,65 @@ router.post("/block", requireLogin, async (req, res) => {
 });
 
 router.get("/show_blocked/:id", requireLogin, async (req, res) => {
+  //try {
+   // let user = await User.findById(req.params.id);
+    // res.status(200).json(user.Blocked);
+  //} catch (err) {
+   // console.log(err);
+   // res.status(200).json({ message: "Unable to fetch the blocked users" });
+  // }
+
   try {
-    let user = await User.findById(req.params.id);
-    res.status(200).json(user.Blocked);
+
+    let userId = req.query.id;
+    if (!userId) {
+      userId = req.userData.userId;
+    }
+
+    let user = await User.findById(userId).select("Blocked");
+    let blocked = [];
+
+    for (
+      let i = 0;
+      i <= user.Blocked.length - 1;
+      i++
+    ) {
+      if (user.Blocked[i]) {
+        console.log(user.Blocked[i]);
+        result = await User.findById(user.Blocked[i]._id);
+        console.log(result);
+        blocked.push({
+          _id: result._id,
+          username: result.username,
+          profile_pic: result.profile_pic,
+          bio: result.bio
+        });
+      }
+    }
+    
+    res.status(200).json(blocked);
   } catch (err) {
     console.log(err);
-    res.status(200).json({ message: "Unable to fetch the blocked users" });
+    return res.status(422).json({
+      message: `Something went wrong`
+    });
   }
+  
 });
 router.post("/unblock", requireLogin, async (req, res) => {
   try {
-    let user = await User.findById(req.body.user_id);
+    let user = await User.findById(req.userData.userId);
+    console.log("Hello" + user)
     for (let key in user.Blocked) {
-      if (user.Blocked[key] === req.body.unblock_id) {
+      if (user.Blocked[key] === req.body.user_id) {
         user.Blocked.splice(key, 1);
-        await user.save();
-        console.log(user.Blocked);
+       await user.save();
+       // console.log(user.Blocked);
         return res.status(200).json({ message: "User successfully unblocked" });
       }
     }
+    
+    
   } catch (err) {
     console.log(err);
     res.status(200).json({ message: "Unable to unblock the user!!" });
